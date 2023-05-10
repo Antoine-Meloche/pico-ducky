@@ -9,7 +9,6 @@ from digitalio import DigitalInOut, Pull
 from adafruit_debouncer import Debouncer
 import board
 from board import *
-import pwmio
 import asyncio
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
@@ -206,34 +205,26 @@ def parseLine(line):
         # ignore ducky script comments
         pass
     elif line.startswith("DELAY"):
-        delay = line[6:]
-        if line[6:].startswith("$"):
-            delay = globals()[line[7:]]
+        delay = getValue(line[6:])
         time.sleep(float(delay) / 1000)
     elif line.startswith("STRING"):
-        string = line[7:]
-        if line[7:].startswith("$"):
-            string = globals()[line[8:]]
+        string = getValue(line[7:])
         sendString(string)
+    elif line.startswith("STRINGLN"):
+        string = getValue(line[9:])
+        sendString(string)
+        kbd.press(Keycode.ENTER)
     elif line.startswith("PRINT"):
-        out = line[6:]
-        if line[6:].startswith("$"):
-            out = globals()[line[7:]]
+        out = getValue(line[6:])
         print("[SCRIPT]: " + out)
     elif line.startswith("IMPORT"):
-        file = line[7:]
-        if line[7:].startswith("$"):
-            file = globals()[line[8:]]
+        file = getValue(line[7:])
         runScript(file)
     elif line.startswith("DEFAULT_DELAY"):
-        delay = line[14:]
-        if line[14:].startswith("$"):
-            delay = globals()[line[15:]]
+        delay = getValue(line[14:])
         defaultDelay = int(delay) * 10
     elif line.startswith("DEFAULTDELAY"):
-        delay = line[13:]
-        if line[13:].startswith("$"):
-            delay = globals()[line[14:]]
+        delay = getValue(line[13:])
         defaultDelay = int(delay) * 10
     elif line.startswith("LED"):
         if led.value == True:
@@ -241,16 +232,13 @@ def parseLine(line):
         else:
             led.value = True
     elif line.startswith("LANG"):
-        KeyboardLayout, _ = changeLang(line[5:])
+        lang = getValue(line[5:])
+        KeyboardLayout, _ = changeLang(lang)
         duckyCommands = define_ducky_commands()
         layout = KeyboardLayout(kbd)
-    elif line.startswith("DETECT_OS"):
+    elif line.startswith("DETECT_OS"): # FIXME: Improve OS detection (add linux, macos, etc. support if possible and passive windows detection)
         os = detectOS()
         sendString(os)
-    elif line.startswith("IF"):
-        return conditionCheck(line[3:-5].replace(" ", ""))
-    elif line.startswith("END_IF"):
-        return True
     elif line.startswith("VAR"):
         saveVar(line[4:])
     elif line.starswith("CONST"):
