@@ -121,6 +121,12 @@ def convertLine(line):
 def detectOS():
     inital_state = kbd.led_on(Keyboard.LED_CAPS_LOCK)
 
+    # Caps lock check
+    kbd.press(Keycode.CAPS_LOCK)
+    kbd.release_all()
+    if inital_state == kbd.led_on(Keyboard.LED_CAPS_LOCK):
+        return "mac"
+
     # Check if windows
     runScriptLine(convertLine("GUI r"))
     time.sleep(0.5)
