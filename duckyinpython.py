@@ -11,6 +11,7 @@ import board
 from board import *
 import asyncio
 import usb_hid
+import storage
 from adafruit_hid.keyboard import Keyboard
 
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS as KeyboardLayout
@@ -202,6 +203,35 @@ def runFunction(name, arguments):
     for line in function_lines:
         parseLine(line)
 
+def createAp(ssid, password):
+    if board.board_id != 'raspberry_pi_pico_w':
+        print("[SCRIPT ERROR]: This command is only available on the Raspberry Pi Pico")
+        return
+    import wifi
+    ssid = getValue(ssid.strip())
+    password = getValue(password.strip())
+    wifi.radio.start_ap(ssid,password)
+
+def connectWiFi(ssid, password):
+    if board.board_id != 'raspberry_pi_pico_w':
+        print("[SCRIPT ERROR]: This command is only available on the Raspberry Pi Pico")
+        return
+    import wifi
+    ssid = getValue(ssid.strip())
+    password = getValue(password.strip())
+    wifi.radio.connect(ssid,password)
+
+def setAttackMode(modes): # FIXME: add support for VID, PID, MAN, PROD & SERIAL
+    modes = modes.strip().split(" ")
+    for mode in modes:
+        if mode == "OFF":
+            storage.disable_usb_drive()
+            usb_hid.disable()
+            return
+        elif mode == "STORAGE":
+            storage.enable_usb_drive()
+        elif mode == "HID":
+            usb_hid.enable()
 
 def parseLine(line):
     global defaultDelay
@@ -253,6 +283,14 @@ def parseLine(line):
         name = line.split("(")[0]
         variables = line.split("(")[1].split(")")[0]
         runFunction(name, variables)
+    elif line.startswith("WIFI"):
+        ssid, password = line[5:].split(",")
+        createAp(ssid, password)
+    elif line.startswith("CONNECT_WIFI"):
+        ssid, password = line[13:].split(",")
+        connectWiFi(ssid, password)
+    elif line.startswith("ATTACKMODE"):
+        setAttackMode(line[11:])
     else:
         newScriptLine = convertLine(line)
         runScriptLine(newScriptLine)
@@ -414,6 +452,7 @@ def runScript(file):
                     while not lines[i].startswith("END_WHILE"):
                         parseLine(lines[i])
                         i += 1
+                continue
 
             if line.startswith("FUNCTION"):
                 function_name = line[8:-2]
@@ -425,6 +464,12 @@ def runScript(file):
                     i += 1
 
                 storeFunction(function_name, function_lines)
+                continue
+
+            if line.startswith("REM_BLOCK"):
+                while not lines[i].startswith("END_REM"):
+                    i += 1
+                continue
 
             if line[0:6] == "REPEAT":
                 for i in range(int(line[7:])):
